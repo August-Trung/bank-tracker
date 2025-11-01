@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bank Tracker</string>
+    <string name="settings">Cài đặt</string>
+    <string name="transactions">Giao dịch</string>
+    <string name="statistics">Thống kê</string>
+
+    <!-- Main Activity -->
+    <string name="total_income">Tổng tiền vào</string>
+    <string name="total_expense">Tổng tiền ra</string>
+    <string name="transaction_count">Số giao dịch</string>
+    <string name="today">Hôm nay</string>
+    <string name="this_week">Tuần này</string>
+    <string name="this_month">Tháng này</string>
+
+    <!-- Notification -->
+    <string name="notification_permission_required">Cần cấp quyền đọc thông báo</string>
+    <string name="notification_permission_desc">Ứng dụng cần quyền đọc thông báo để theo dõi biến động số dư từ ngân hàng</string>
+    <string name="grant_permission">Cấp quyền</string>
+
+    <!-- Settings -->
+    <string name="sound_settings">Âm thanh &amp; Rung</string>
+    <string name="enable_sound">Bật âm thanh thông báo</string>
+    <string name="enable_vibration">Bật rung</string>
+    <string name="max_volume">Tăng âm lượng tối đa</string>
+    <string name="choose_sound">Chọn âm thanh</string>
+
+    <string name="amount_settings">Ngưỡng số tiền</string>
+    <string name="minimum_amount">Số tiền tối thiểu (VND)</string>
+    <string name="large_amount_threshold">Ngưỡng giao dịch lớn (VND)</string>
+
+    <string name="bank_selection">Ngân hàng theo dõi</string>
+    <string name="select_banks">Chọn các ngân hàng bạn muốn theo dõi</string>
+
+    <!-- Menu -->
+    <string name="menu_export">Export dữ liệu</string>
+    <string name="menu_delete_all">Xóa tất cả</string>
+    <string name="menu_settings">Cài đặt</string>
+
+    <!-- Dialogs -->
+    <string name="delete_transaction">Xóa giao dịch</string>
+    <string name="delete_transaction_confirm">Bạn có chắc muốn xóa giao dịch này?</string>
+    <string name="delete_all_confirm">Bạn có chắc muốn xóa toàn bộ lịch sử giao dịch?</string>
+    <string name="delete">Xóa</string>
+    <string name="cancel">Hủy</string>
+
+    <!-- Empty state -->
+    <string name="no_transactions">Chưa có giao dịch nào</string>
+    <string name="no_transactions_desc">Giao dịch của bạn sẽ hiển thị ở đây</string>
+
+    <!-- Banks -->
+    <string name="bank_mb">MB Bank</string>
+    <string name="bank_vcb">Vietcombank</string>
+    <string name="bank_tcb">Techcombank</string>
+    <string name="bank_vietin">VietinBank</string>
+    <string name="bank_acb">ACB</string>
+    <string name="bank_agri">Agribank</string>
+    <string name="bank_bidv">BIDV</string>
+
+    <!-- Widget -->
+    <string name="widget_title">Tiền vào hôm nay</string>
+    <string name="widget_no_data">Chưa có giao dịch</string>
+</resources>
