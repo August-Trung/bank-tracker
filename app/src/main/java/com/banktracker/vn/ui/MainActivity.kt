@@ -1,11 +1,15 @@
 package com.banktracker.vn.ui
 
+import android.animation.ArgbEvaluator
+import android.animation.ObjectAnimator
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.os.Vibrator
 import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
@@ -14,11 +18,11 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.banktracker.vn.R
-import com.banktracker.vn.databinding.ActivityMainBinding
 import com.banktracker.vn.data.model.Transaction
-import com.banktracker.vn.data.model.TransactionType
+import com.banktracker.vn.databinding.ActivityMainBinding
 import com.banktracker.vn.service.BankNotificationListenerService
 import com.banktracker.vn.ui.adapter.TransactionAdapter
 import com.banktracker.vn.ui.viewmodel.MainViewModel
@@ -50,6 +54,32 @@ class MainActivity : AppCompatActivity() {
         setupListeners()
         checkNotificationPermission()
 
+        // 🔹 Cập nhật UI trạng thái quyền
+        updateServiceStatusUI()
+
+        // 🔹 Xử lý bật/tắt switch
+        binding.switchService.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                // Mở màn hình cấp quyền đọc thông báo
+                val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+                startActivity(intent)
+            } else {
+                // Không thể tắt quyền bằng code → hiện hướng dẫn
+                AlertDialog.Builder(this)
+                    .setTitle("Tắt quyền đọc thông báo")
+                    .setMessage("Vui lòng vào Cài đặt → Ứng dụng có quyền đọc thông báo → Tắt quyền cho BankTracker.")
+                    .setPositiveButton("Mở Cài đặt") { _, _ ->
+                        val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+                        startActivity(intent)
+                    }
+                    .setNegativeButton("Đóng", null)
+                    .show()
+
+                // Giữ lại trạng thái switch = true
+                binding.switchService.isChecked = true
+            }
+        }
+
         // Register broadcast receiver
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(
@@ -64,6 +94,7 @@ class MainActivity : AppCompatActivity() {
             )
         }
     }
+
 
     override fun onDestroy() {
         super.onDestroy()
@@ -91,7 +122,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupObservers() {
-        // Observe all transactions
         viewModel.allTransactions.observe(this) { transactions ->
             transactionAdapter.submitList(transactions)
             binding.layoutEmptyState.visibility = if (transactions.isEmpty()) {
@@ -101,14 +131,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Observe today summary (default)
         viewModel.todaySummary.observe(this) { summary ->
             updateSummaryUI(summary)
         }
     }
 
     private fun setupListeners() {
-        // Tab layout
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 when (tab?.position) {
@@ -121,14 +149,41 @@ class MainActivity : AppCompatActivity() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        // Service enable button
-        binding.btnEnableService.setOnClickListener {
-            openNotificationSettings()
-        }
+//        binding.btnEnableService.setOnClickListener {
+//            openNotificationSettings()
+//        }
 
-        // FAB
         binding.fabSettings.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
+        // 🔄 Switch bật/tắt nghe thông báo
+        binding.switchService.setOnCheckedChangeListener { _, isChecked ->
+            val isEnabled = NotificationManagerCompat.getEnabledListenerPackages(this)
+                .contains(packageName)
+
+            if (!isEnabled) {
+                openNotificationSettings()
+                binding.switchService.isChecked = false
+                return@setOnCheckedChangeListener
+            }
+
+            if (isChecked) {
+                animateCardColor(
+                    fromColor = getColor(R.color.surfaceVariant),
+                    toColor = getColor(R.color.teal_50)
+                )
+                vibrateShort()
+                checkAndRestartService()
+            } else {
+                animateCardColor(
+                    fromColor = getColor(R.color.teal_50),
+                    toColor = getColor(R.color.surfaceVariant)
+                )
+                stopService(Intent(this, BankNotificationListenerService::class.java))
+            }
+
+            updateServiceStatusUI(isEnabled, BankNotificationListenerService.isRunning())
         }
     }
 
@@ -140,13 +195,55 @@ class MainActivity : AppCompatActivity() {
     private fun checkNotificationPermission() {
         val isEnabled = NotificationManagerCompat.getEnabledListenerPackages(this)
             .contains(packageName)
+        val isRunning = BankNotificationListenerService.isRunning()
 
-        if (isEnabled) {
-            binding.cardServiceStatus.visibility = View.GONE
-        } else {
-            binding.cardServiceStatus.visibility = View.VISIBLE
-            binding.tvServiceStatus.text = "⚠️ Chưa cấp quyền đọc thông báo"
+        updateServiceStatusUI(isEnabled, isRunning)
+    }
+
+    private fun updateServiceStatusUI(isEnabled: Boolean, isRunning: Boolean) {
+        val switch = binding.switchService
+        val icon = binding.icServiceStatus
+
+        when {
+            !isEnabled -> {
+                binding.tvServiceStatus.text = "Chưa cấp quyền đọc thông báo"
+                binding.tvServiceTitle.text = "Nghe thông báo ngân hàng"
+                switch.isChecked = false
+                icon.setColorFilter(getColor(R.color.gray))
+                binding.cardServiceStatus.setCardBackgroundColor(getColor(R.color.surfaceVariant))
+            }
+            isRunning -> {
+                binding.tvServiceStatus.text = "Đang hoạt động"
+                switch.isChecked = true
+                icon.setColorFilter(getColor(R.color.teal_700))
+                binding.cardServiceStatus.setCardBackgroundColor(getColor(R.color.teal_50))
+            }
+            else -> {
+                binding.tvServiceStatus.text = "Đã cấp quyền, service tạm dừng"
+                switch.isChecked = false
+                icon.setColorFilter(getColor(R.color.gray))
+                binding.cardServiceStatus.setCardBackgroundColor(getColor(R.color.surfaceVariant))
+            }
         }
+    }
+
+    private fun animateCardColor(fromColor: Int, toColor: Int) {
+        val anim = ObjectAnimator.ofInt(binding.cardServiceStatus, "cardBackgroundColor", fromColor, toColor)
+        anim.setEvaluator(ArgbEvaluator())
+        anim.duration = 600
+        anim.start()
+    }
+
+    private fun vibrateShort() {
+        try {
+            val v = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                v.vibrate(android.os.VibrationEffect.createOneShot(80, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                v.vibrate(80)
+            }
+        } catch (_: Exception) {}
     }
 
     private fun openNotificationSettings() {
@@ -156,13 +253,16 @@ class MainActivity : AppCompatActivity() {
     private fun showTransactionDetails(transaction: Transaction) {
         MaterialAlertDialogBuilder(this)
             .setTitle("Chi tiết giao dịch")
-            .setMessage("""
+            .setMessage(
+                """
                 Ngân hàng: ${transaction.bankName}
                 Số tiền: ${formatMoney(transaction.amount)} VND
                 Nội dung: ${transaction.content}
                 ${if (transaction.balance != null) "Số dư: ${formatMoney(transaction.balance!!)} VND" else ""}
-                Thời gian: ${java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(transaction.timestamp))}
-            """.trimIndent())
+                Thời gian: ${java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss", java.util.Locale.getDefault())
+                    .format(java.util.Date(transaction.timestamp))}
+                """.trimIndent()
+            )
             .setPositiveButton("Đóng", null)
             .setNegativeButton("Xóa") { _, _ ->
                 viewModel.deleteTransaction(transaction)
@@ -230,28 +330,49 @@ class MainActivity : AppCompatActivity() {
         return String.format("%,.0f", amount)
     }
 
+    private fun isNotificationServiceEnabled(context: Context): Boolean {
+        val enabledListeners = Settings.Secure.getString(
+            context.contentResolver,
+            "enabled_notification_listeners"
+        )
+        val packageName = context.packageName
+        return enabledListeners?.contains(packageName) == true
+    }
+
+    private fun updateServiceStatusUI() {
+        val enabled = isNotificationServiceEnabled(this)
+        binding.switchService.isChecked = enabled
+        if (enabled) {
+            binding.tvServiceStatus.text = "Đang hoạt động"
+            binding.tvServiceStatus.setTextColor(ContextCompat.getColor(this, R.color.income_green))
+        } else {
+            binding.tvServiceStatus.text = "Chưa cấp quyền đọc thông báo"
+            binding.tvServiceStatus.setTextColor(ContextCompat.getColor(this, R.color.gray))
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         checkNotificationPermission()
         viewModel.loadSummaries()
-
-//        checkAndRestartService()
+        checkAndRestartService()
+        updateServiceStatusUI()
     }
 
-//    private fun checkAndRestartService() {
-//        val isEnabled = NotificationManagerCompat.getEnabledListenerPackages(this)
-//            .contains(packageName)
-//
-//        if (isEnabled && !BankNotificationListenerService.isRunning()) {
-//            try {
-//                val serviceIntent = Intent(this, BankNotificationListenerService::class.java)
-//                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//                    startForegroundService(serviceIntent)
-//                } else {
-//                    startService(serviceIntent)
-//                }
-//            } catch (e: Exception) {
-//            }
-//        }
-//    }
+    private fun checkAndRestartService() {
+        val isEnabled = NotificationManagerCompat.getEnabledListenerPackages(this)
+            .contains(packageName)
+
+        if (isEnabled && !BankNotificationListenerService.isRunning()) {
+            try {
+                val serviceIntent = Intent(this, BankNotificationListenerService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(serviceIntent)
+                } else {
+                    startService(serviceIntent)
+                }
+            } catch (e: Exception) {
+            }
+        }
+    }
 }

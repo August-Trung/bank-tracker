@@ -60,4 +60,6 @@
     <!-- Widget -->
     <string name="widget_title">Tiền vào hôm nay</string>
     <string name="widget_no_data">Chưa có giao dịch</string>
+
+    <string name="service_status_icon">Biểu tượng trạng thái dịch vụ</string>
 </resources>

@@ -14,6 +14,11 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
+    <!-- Permissions để restart service -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
     <application
         android:name=".BankTrackerApplication"
         android:allowBackup="true"
@@ -51,17 +56,37 @@
             android:parentActivityName=".ui.MainActivity" />
 
         <!-- Notification Listener Service -->
-        <!-- QUAN TRỌNG: Đã thêm android:foregroundServiceType="dataSync" -->
         <service
             android:name=".service.BankNotificationListenerService"
             android:enabled="true"
             android:exported="true"
             android:foregroundServiceType="dataSync"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:stopWithTask="false">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- Broadcast Receiver để restart service -->
+        <receiver
+            android:name=".service.ServiceRestartBroadcastReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter>
+                <!-- Restart khi thiết bị khởi động -->
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+
+                <!-- Restart khi app được cập nhật -->
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+
+                <!-- Custom action để service tự restart -->
+                <action android:name="com.banktracker.vn.RESTART_SERVICE" />
+            </intent-filter>
+        </receiver>
+
 
         <!-- App Widget -->
         <receiver

@@ -18,7 +18,6 @@
             app:title="@string/app_name"
             app:titleTextColor="@android:color/white"
             app:menu="@menu/menu_main" />
-
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
@@ -38,33 +37,59 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                app:strokeColor="@color/divider"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
                     android:padding="16dp">
 
-                    <TextView
-                        android:id="@+id/tvServiceStatus"
+                    <!-- Icon trạng thái -->
+                    <ImageView
+                        android:id="@+id/icServiceStatus"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:contentDescription="@string/service_status_icon"
+                        app:srcCompat="@android:drawable/ic_dialog_info"
+                        app:tint="@color/gray" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp">
+
+                        <TextView
+                            android:id="@+id/tvServiceTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Nghe thông báo ngân hàng"
+                            android:textStyle="bold"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            android:id="@+id/tvServiceStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Chưa cấp quyền đọc thông báo"
+                            android:textSize="13sp"
+                            android:textColor="@color/gray" />
+                    </LinearLayout>
+
+                    <!-- Switch bật/tắt -->
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchService"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="⚠️ Chưa cấp quyền thông báo"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnEnableService"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="Cấp quyền"
-                        style="@style/Widget.Material3.Button.OutlinedButton" />
-
+                        android:checked="false" />
                 </LinearLayout>
-
             </com.google.android.material.card.MaterialCardView>
 
             <!-- Summary Tabs -->
@@ -116,10 +141,10 @@
                         android:layout_marginBottom="12dp">
 
                         <ImageView
+                            app:srcCompat="@drawable/ic_money_income"
                             android:layout_width="24dp"
                             android:layout_height="24dp"
-                            android:src="@drawable/ic_money_income"
-                            android:tint="@color/income_green" />
+                            app:tint="@color/income_green" />
 
                         <LinearLayout
                             android:layout_width="0dp"
@@ -145,48 +170,6 @@
                                 android:textColor="@color/income_green" />
 
                         </LinearLayout>
-
-                    </LinearLayout>
-
-                    <!-- Total Expense -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginBottom="12dp">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@drawable/ic_money_expense"
-                            android:tint="@color/expense_red" />
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="12dp"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Tiền ra"
-                                android:textSize="12sp"
-                                android:textColor="@android:color/darker_gray" />
-
-                            <TextView
-                                android:id="@+id/tvTotalExpense"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="0 VND"
-                                android:textSize="18sp"
-                                android:textStyle="bold"
-                                android:textColor="@color/expense_red" />
-
-                        </LinearLayout>
-
                     </LinearLayout>
 
                     <!-- Transaction Count -->
@@ -197,9 +180,9 @@
                         android:gravity="center_vertical">
 
                         <ImageView
+                            app:srcCompat="@drawable/ic_list"
                             android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@drawable/ic_list" />
+                            android:layout_height="24dp" />
 
                         <TextView
                             android:id="@+id/tvTransactionCount"
@@ -208,62 +191,9 @@
                             android:layout_marginStart="12dp"
                             android:text="0 giao dịch"
                             android:textSize="14sp" />
-
                     </LinearLayout>
-
                 </LinearLayout>
-
             </com.google.android.material.card.MaterialCardView>
-
-            <!-- Filter Section -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Lọc:"
-                    android:textStyle="bold"
-                    android:layout_marginEnd="8dp" />
-
-                <com.google.android.material.chip.ChipGroup
-                    android:id="@+id/chipGroupFilter"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    app:singleSelection="false">
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipAllBanks"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Tất cả"
-                        android:checked="true"
-                        style="@style/Widget.Material3.Chip.Filter" />
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipIncomeOnly"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Tiền vào"
-                        style="@style/Widget.Material3.Chip.Filter" />
-
-                </com.google.android.material.chip.ChipGroup>
-
-            </LinearLayout>
-
-            <!-- Transactions List Header -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Giao dịch gần đây"
-                android:textStyle="bold"
-                android:textSize="16sp"
-                android:layout_marginBottom="8dp" />
 
             <!-- Transactions RecyclerView -->
             <androidx.recyclerview.widget.RecyclerView
@@ -283,9 +213,9 @@
                 android:visibility="gone">
 
                 <ImageView
+                    app:srcCompat="@drawable/ic_empty_state"
                     android:layout_width="64dp"
                     android:layout_height="64dp"
-                    android:src="@drawable/ic_empty_state"
                     android:alpha="0.5" />
 
                 <TextView
@@ -295,11 +225,8 @@
                     android:text="Chưa có giao dịch nào"
                     android:textSize="16sp"
                     android:textColor="@android:color/darker_gray" />
-
             </LinearLayout>
-
         </LinearLayout>
-
     </androidx.core.widget.NestedScrollView>
 
     <!-- FAB -->
@@ -309,7 +236,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:src="@drawable/ic_settings"
-        app:tint="@android:color/white" />
-
+        app:srcCompat="@drawable/ic_settings"
+        app:tint="@android:color/white"
+        android:contentDescription="@string/settings" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

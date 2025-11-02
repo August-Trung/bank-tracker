@@ -1,8 +1,10 @@
 package com.banktracker.vn.service
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
@@ -13,6 +15,8 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.banktracker.vn.R
@@ -25,9 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class BankNotificationListenerService : NotificationListenerService() {
@@ -43,7 +45,9 @@ class BankNotificationListenerService : NotificationListenerService() {
     companion object {
         const val CHANNEL_ID = "bank_tracker_channel"
         const val ACTION_TRANSACTION_DETECTED = "com.banktracker.vn.TRANSACTION_DETECTED"
+        const val ACTION_RESTART_SERVICE = "com.banktracker.vn.RESTART_SERVICE"
 
+        @Volatile
         private var isServiceRunning = false
 
         fun isRunning(): Boolean = isServiceRunning
@@ -51,13 +55,28 @@ class BankNotificationListenerService : NotificationListenerService() {
 
     override fun onCreate() {
         super.onCreate()
+        Log.d("BankTracker", "Service onCreate()")
         database = AppDatabase.getDatabase(applicationContext)
         preferencesManager = PreferencesManager(applicationContext)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        initTextToSpeech()  // Khởi tạo TTS ngay từ đầu
+        initTextToSpeech()
         isServiceRunning = true
         createNotificationChannel()
         startForeground()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d("BankTracker", "Service onStartCommand() - Action: ${intent?.action}")
+
+        when (intent?.action) {
+            ACTION_RESTART_SERVICE -> {
+                Log.d("BankTracker", "Service restarting...")
+                // Service được restart
+            }
+        }
+
+        // START_STICKY: Tự động restart khi bị kill bởi system
+        return START_STICKY
     }
 
     private fun initTextToSpeech() {
@@ -91,100 +110,151 @@ class BankNotificationListenerService : NotificationListenerService() {
         } else {
             startForeground(1, notification)
         }
+
+        Log.d("BankTracker", "Foreground service started")
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        Log.d("BankTracker", "Service onDestroy() - Scheduling restart...")
+
         isServiceRunning = false
         mediaPlayer?.release()
         mediaPlayer = null
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         textToSpeech = null
+
+        // QUAN TRỌNG: Schedule restart service
+        scheduleServiceRestart()
+    }
+
+    private fun scheduleServiceRestart() {
+        val restartIntent = Intent(applicationContext, ServiceRestartBroadcastReceiver::class.java).apply {
+            action = "com.banktracker.vn.RESTART_SERVICE" // khớp với manifest
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(
+            applicationContext,
+            0,
+            restartIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val restartTime = System.currentTimeMillis() + 2000 // Restart sau 2 giây
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    restartTime,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.set(
+                    AlarmManager.RTC_WAKEUP,
+                    restartTime,
+                    pendingIntent
+                )
+            }
+            Log.d("BankTracker", "✅ Service restart scheduled in 2s")
+        } catch (e: Exception) {
+            Log.e("BankTracker", "❌ Failed to schedule restart", e)
+        }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        super.onNotificationPosted(sbn)
+        try {
+            super.onNotificationPosted(sbn)
 
-        val packageName = sbn.packageName
-        val notification = sbn.notification ?: return
+            val packageName = sbn.packageName
+            val notification = sbn.notification ?: return
 
-        // Get notification text
-        val notificationText = getNotificationText(notification) ?: return
+            // Get notification text
+            val notificationText = getNotificationText(notification) ?: return
 
-        // Kiểm tra có phải thông báo ngân hàng không
-        val bankCode = BankCode.fromPackageName(packageName)
+            Log.d("BankTracker", "Notification from: $packageName")
+            Log.d("BankTracker", "Text: ${notificationText.take(100)}")
 
-        // Nếu không phải app ngân hàng đã biết, kiểm tra nội dung
-        if (bankCode == null) {
-            if (!containsBalanceChangeKeywords(notificationText)) {
+            // Kiểm tra có phải thông báo ngân hàng không
+            val bankCode = BankCode.fromPackageName(packageName)
+
+            // Nếu không phải app ngân hàng đã biết, kiểm tra nội dung
+            if (bankCode == null) {
+                if (!containsBalanceChangeKeywords(notificationText)) {
+                    return
+                }
+                Log.d("BankTracker", "Detected unknown bank notification: $packageName")
+            } else if (bankCode == BankCode.UNKNOWN) {
+                if (!containsBalanceChangeKeywords(notificationText)) {
+                    return
+                }
+            }
+
+            // Check if this bank is enabled in settings (nếu là bank đã biết)
+            if (bankCode != null && bankCode != BankCode.UNKNOWN && !preferencesManager.isBankEnabled(bankCode.code)) {
+                Log.d("BankTracker", "Bank ${bankCode.code} is disabled")
                 return
             }
-            Log.d("BankTracker", "Detected unknown bank notification: $packageName")
-        } else if (bankCode == BankCode.UNKNOWN) {
-            if (!containsBalanceChangeKeywords(notificationText)) {
+
+            // Parse the notification
+            val parsed = BankNotificationParser.parseNotification(notificationText, bankCode) ?: return
+
+            // Check minimum amount threshold
+            val minAmount = preferencesManager.getMinimumAmount()
+            if (parsed.amount < minAmount) {
+                Log.d("BankTracker", "Amount ${parsed.amount} < minimum $minAmount")
                 return
             }
-        }
 
-        // Check if this bank is enabled in settings (nếu là bank đã biết)
-        if (bankCode != null && bankCode != BankCode.UNKNOWN && !preferencesManager.isBankEnabled(bankCode.code)) {
-            return
-        }
+            // Create transaction
+            val transaction = BankNotificationParser.createTransaction(
+                parsed = parsed,
+                bankCode = bankCode,
+                notificationText = notificationText
+            )
 
-        // Parse the notification
-        val parsed = BankNotificationParser.parseNotification(notificationText, bankCode) ?: return
+            // CHỈ xử lý nếu là TIỀN VÀO
+            if (parsed.type != TransactionType.INCOME) {
+                return
+            }
 
-        // Check minimum amount threshold
-        val minAmount = preferencesManager.getMinimumAmount()
-        if (parsed.amount < minAmount) {
-            return
-        }
+            Log.d("BankTracker", "Processing transaction: ${transaction.amount} VND")
 
-        // Create transaction
-        val transaction = BankNotificationParser.createTransaction(
-            parsed = parsed,
-            bankCode = bankCode,
-            notificationText = notificationText
-        )
+            // Save to database
+            serviceScope.launch {
+                database.transactionDao().insertTransaction(transaction)
 
-        // CHỈ xử lý nếu là TIỀN VÀO
-        if (parsed.type != TransactionType.INCOME) {
-            return
-        }
+                // Broadcast to update UI
+                val intent = Intent(ACTION_TRANSACTION_DETECTED)
+                intent.putExtra("transaction_id", transaction.id)
+                sendBroadcast(intent)
 
-        // Save to database
-        serviceScope.launch {
-            database.transactionDao().insertTransaction(transaction)
+                // Tạo notification và rung trong background
+                withContext(Dispatchers.Default) {
+                    showCustomNotification(transaction)
+                    vibrateIfEnabled()
+                }
 
-            // Broadcast to update UI
-            val intent = Intent(ACTION_TRANSACTION_DETECTED)
-            intent.putExtra("transaction_id", transaction.id)
-            sendBroadcast(intent)
+                // Xử lý âm thanh & TTS trên main thread
+                withContext(Dispatchers.Main) {
+                    if (preferencesManager.isSoundEnabled()) {
+                        if (preferencesManager.isTTSEnabled() && isTTSReady) {
+                            speakWithTTS(transaction)
+                        } else {
+                            playNotificationSound()
+                        }
+                    }
 
-            // Show notification and play sound/TTS
-            launch(Dispatchers.Main) {
-                showCustomNotification(transaction)
-
-                // KIỂM TRA TTS TRƯỚC KHI PHÁT ÂM THANH
-                if (preferencesManager.isSoundEnabled()) {
-                    if (preferencesManager.isTTSEnabled() && isTTSReady) {
-                        // Đọc bằng giọng nói
-                        speakWithTTS(transaction)
-                    } else {
-                        // Phát âm thanh thông báo
-                        playNotificationSound()
+                    val largeAmountThreshold = preferencesManager.getLargeAmountThreshold()
+                    if (parsed.amount >= largeAmountThreshold) {
+                        showLargeTransactionAlert(transaction)
                     }
                 }
-
-                vibrateIfEnabled()
-
-                // Check for large transaction alert
-                val largeAmountThreshold = preferencesManager.getLargeAmountThreshold()
-                if (parsed.amount >= largeAmountThreshold) {
-                    showLargeTransactionAlert(transaction)
-                }
             }
+        } catch (e: Exception) {
+            Log.e("BankService", "Error handling notification: ${e.stackTraceToString()}")
         }
     }
 
@@ -204,14 +274,16 @@ class BankNotificationListenerService : NotificationListenerService() {
 
     private fun containsBalanceChangeKeywords(text: String): Boolean {
         val keywords = listOf(
-            "biến động số dư",
-            "giao dịch thành công",
-            "tiền vào",
-            "tiền ra",
-            "thanh toán",
-            "nhận tiền"
+            "biến động số dư", "giao dịch thành công", "tiền vào",
+            "tiền ra", "thanh toán", "nhận tiền", "+.*VND", "balance"
         )
-        return keywords.any { text.contains(it, ignoreCase = true) }
+        return keywords.any { keyword ->
+            if (keyword.contains(".*")) {
+                Regex(keyword, RegexOption.IGNORE_CASE).find(text) != null
+            } else {
+                text.contains(keyword, ignoreCase = true)
+            }
+        }
     }
 
     private fun showCustomNotification(transaction: com.banktracker.vn.data.model.Transaction) {
@@ -248,7 +320,6 @@ class BankNotificationListenerService : NotificationListenerService() {
 
     private fun speakWithTTS(transaction: com.banktracker.vn.data.model.Transaction) {
         try {
-            // Tăng volume lên max nếu enable
             val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
             val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
 
@@ -256,38 +327,25 @@ class BankNotificationListenerService : NotificationListenerService() {
                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0)
             }
 
-            // Lọc bỏ mã giao dịch từ content
-            val cleanContent = cleanTransactionContent(transaction.content)
+            val amount = transaction.amount
+            val type = if (amount > 0) "Đã nhận" else "Đã chi"
 
-            // Tạo câu đọc
-            val amountText = formatMoneyToVietnamese(transaction.amount)
-            val message = if (cleanContent.isNotEmpty()) {
-                "Bạn vừa nhận được $amountText đồng từ ${transaction.bankName}. Nội dung: $cleanContent"
-            } else {
-                "Bạn vừa nhận được $amountText đồng từ ${transaction.bankName}"
-            }
+            val amountText = formatMoneyToVietnamese(amount)
+            val message = "$type $amountText"
 
             Log.d("BankTracker", "Speaking: $message")
 
-            // Đọc
             val utteranceId = "transaction_${transaction.id}"
             textToSpeech?.speak(message, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
 
-            // Restore volume sau khi đọc xong
             textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                override fun onStart(utteranceId: String?) {
-                    Log.d("BankTracker", "TTS started")
-                }
-
+                override fun onStart(utteranceId: String?) {}
                 override fun onDone(utteranceId: String?) {
-                    Log.d("BankTracker", "TTS completed")
                     if (preferencesManager.isMaxVolumeEnabled()) {
                         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, currentVolume, 0)
                     }
                 }
-
                 override fun onError(utteranceId: String?) {
-                    Log.e("BankTracker", "TTS error")
                     if (preferencesManager.isMaxVolumeEnabled()) {
                         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, currentVolume, 0)
                     }
@@ -296,66 +354,46 @@ class BankNotificationListenerService : NotificationListenerService() {
 
         } catch (e: Exception) {
             Log.e("BankTracker", "TTS Exception", e)
-            // Fallback to sound nếu TTS lỗi
             playNotificationSound()
         }
     }
 
     private fun formatMoneyToVietnamese(amount: Double): String {
-        val billions = (amount / 1_000_000_000).toInt()
-        val millions = ((amount % 1_000_000_000) / 1_000_000).toInt()
-        val thousands = ((amount % 1_000_000) / 1_000).toInt()
+        val absAmount = amount.toLong()
+        val billions = absAmount / 1_000_000_000
+        val millions = (absAmount % 1_000_000_000) / 1_000_000
+        val thousands = (absAmount % 1_000_000) / 1_000
+        val hundreds = absAmount % 1_000
 
         val parts = mutableListOf<String>()
+        if (billions > 0) parts.add("${billions} tỷ")
+        if (millions > 0) parts.add("${millions} triệu")
+        if (thousands > 0) parts.add("${thousands} nghìn")
+        if (hundreds > 0) parts.add("${hundreds} đồng")
 
-        if (billions > 0) {
-            parts.add("$billions tỷ")
-        }
-        if (millions > 0) {
-            parts.add("$millions triệu")
-        }
-        if (thousands > 0) {
-            parts.add("$thousands nghìn")
-        }
-
-        return if (parts.isEmpty()) {
-            "${amount.toInt()}"
-        } else {
-            parts.joinToString(" ")
-        }
+        return parts.joinToString(" ")
     }
 
-    private fun cleanTransactionContent(content: String): String {
-        // Loại bỏ mã giao dịch (Trace, Ma giao dich, MGD, etc.)
-        var cleaned = content
 
-        // Regex patterns để loại bỏ mã giao dịch
+    private fun cleanTransactionContent(content: String): String {
+        var cleaned = content
         val patterns = listOf(
             Regex("""Trace\s*\d+""", RegexOption.IGNORE_CASE),
             Regex("""Ma giao dich[:\s]+[A-Z0-9]+""", RegexOption.IGNORE_CASE),
             Regex("""MGD[:\s]+[A-Z0-9]+""", RegexOption.IGNORE_CASE),
             Regex("""FT\d+[A-Z0-9]+""", RegexOption.IGNORE_CASE),
-            Regex("""\b[A-Z]{2,}\d{6,}\b"""),  // Các mã dạng ABC123456
-            Regex("""\d{6,}""")  // Các số dài (mã giao dịch)
+            Regex("""\b[A-Z]{2,}\d{6,}\b"""),
+            Regex("""\d{6,}""")
         )
-
-        patterns.forEach { pattern ->
-            cleaned = pattern.replace(cleaned, "")
-        }
-
-        // Loại bỏ khoảng trắng thừa
-        cleaned = cleaned.trim().replace(Regex("""\s+"""), " ")
-
-        return cleaned
+        patterns.forEach { pattern -> cleaned = pattern.replace(cleaned, "") }
+        return cleaned.trim().replace(Regex("""\s+"""), " ")
     }
 
     private fun playNotificationSound() {
         try {
             mediaPlayer?.release()
-
             val soundUri = preferencesManager.getCustomSoundUri()
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-
             mediaPlayer = MediaPlayer.create(this, soundUri)
 
             val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -408,5 +446,18 @@ class BankNotificationListenerService : NotificationListenerService() {
 
     private fun formatMoney(amount: Double): String {
         return String.format("%,.0f", amount)
+    }
+
+    private fun parseAmount(raw: String?): Double {
+        if (raw.isNullOrBlank()) return 0.0
+        return try {
+            raw.replace(".", "")   // bỏ dấu ngăn nghìn
+                .replace(",", ".") // nếu có dấu thập phân
+                .filter { it.isDigit() || it == '.' } // loại bỏ ký tự thừa
+                .toDouble()
+        } catch (e: Exception) {
+            Log.e("BankService", "parseAmount error: ${e.message}")
+            0.0
+        }
     }
 }
