@@ -3,14 +3,9 @@ package com.banktracker.vn.service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 
-/**
- * BroadcastReceiver để restart service khi bị kill
- * và khi device reboot
- */
 class ServiceRestartBroadcastReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -19,7 +14,7 @@ class ServiceRestartBroadcastReceiver : BroadcastReceiver() {
         when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED,
-            "com.banktracker.vn.RESTART_SERVICE" -> {
+            BankNotificationListenerService.ACTION_RESTART_SERVICE -> {
                 val hasPermission = NotificationManagerCompat.getEnabledListenerPackages(context)
                     .contains(context.packageName)
 
@@ -38,7 +33,7 @@ class ServiceRestartBroadcastReceiver : BroadcastReceiver() {
             val serviceIntent = Intent(context, BankNotificationListenerService::class.java)
             serviceIntent.action = BankNotificationListenerService.ACTION_RESTART_SERVICE
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 context.startForegroundService(serviceIntent)
             } else {
                 context.startService(serviceIntent)

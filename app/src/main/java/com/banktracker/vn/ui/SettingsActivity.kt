@@ -40,20 +40,20 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun loadSettings() {
-        // Sound settings
+        // Âm thanh & rung
         binding.switchSound.isChecked = preferencesManager.isSoundEnabled()
         binding.switchVibration.isChecked = preferencesManager.isVibrationEnabled()
         binding.switchMaxVolume.isChecked = preferencesManager.isMaxVolumeEnabled()
         binding.switchTTS.isChecked = preferencesManager.isTTSEnabled()
 
-        // Amount settings
+        // Ngưỡng tiền
         binding.etMinAmount.setText(preferencesManager.getMinimumAmount().toInt().toString())
         binding.etLargeAmount.setText(preferencesManager.getLargeAmountThreshold().toInt().toString())
 
-        // Update UI visibility
+        // Ẩn/hiện phần âm thanh phụ
         updateSoundSettingsVisibility(binding.switchSound.isChecked)
 
-        // Bank settings - load enabled status for each bank
+        // Ngân hàng — bật/tắt theo Preferences
         BankCode.values().forEach { bank ->
             when (bank) {
                 BankCode.MB -> binding.switchMB.isChecked = preferencesManager.isBankEnabled(bank.code)
@@ -63,113 +63,106 @@ class SettingsActivity : AppCompatActivity() {
                 BankCode.ACB -> binding.switchACB.isChecked = preferencesManager.isBankEnabled(bank.code)
                 BankCode.AGRI -> binding.switchAgri.isChecked = preferencesManager.isBankEnabled(bank.code)
                 BankCode.BIDV -> binding.switchBIDV.isChecked = preferencesManager.isBankEnabled(bank.code)
+                // --- 3 ngân hàng mới ---
+                BankCode.MSB -> binding.switchMSB.isChecked = preferencesManager.isBankEnabled(bank.code)
+                BankCode.TIMO -> binding.switchTimo.isChecked = preferencesManager.isBankEnabled(bank.code)
+                BankCode.MOMO -> binding.switchMoMo.isChecked = preferencesManager.isBankEnabled(bank.code)
                 else -> {}
             }
         }
     }
 
     private fun setupListeners() {
-        // Sound switches
+        // Âm thanh
         binding.switchSound.setOnCheckedChangeListener { _, isChecked ->
             preferencesManager.setSoundEnabled(isChecked)
             updateSoundSettingsVisibility(isChecked)
         }
-
         binding.switchVibration.setOnCheckedChangeListener { _, isChecked ->
             preferencesManager.setVibrationEnabled(isChecked)
         }
-
         binding.switchMaxVolume.setOnCheckedChangeListener { _, isChecked ->
             preferencesManager.setMaxVolumeEnabled(isChecked)
         }
-
-        // TTS switch - THÊM LISTENER NÀY
         binding.switchTTS.setOnCheckedChangeListener { _, isChecked ->
             preferencesManager.setTTSEnabled(isChecked)
         }
 
-        // Custom sound picker
+        // Chọn âm thanh tùy chỉnh
         binding.btnChooseSound.setOnClickListener {
-            val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
-            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION)
-            intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Chọn âm thanh thông báo")
-
-            preferencesManager.getCustomSoundUri()?.let {
-                intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, it)
+            val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION)
+                putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Chọn âm thanh thông báo")
+                preferencesManager.getCustomSoundUri()?.let {
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, it)
+                }
             }
-
             startActivityForResult(intent, REQUEST_CODE_SOUND_PICKER)
         }
 
-        // Amount settings
+        // Lưu ngưỡng tiền
         binding.btnSaveMinAmount.setOnClickListener {
             val amount = binding.etMinAmount.text.toString().toDoubleOrNull() ?: 0.0
             preferencesManager.setMinimumAmount(amount)
             showToast("Đã lưu ngưỡng tối thiểu")
         }
-
         binding.btnSaveLargeAmount.setOnClickListener {
             val amount = binding.etLargeAmount.text.toString().toDoubleOrNull() ?: 10_000_000.0
             preferencesManager.setLargeAmountThreshold(amount)
             showToast("Đã lưu ngưỡng giao dịch lớn")
         }
 
-        // Bank switches
+        // Ngân hàng truyền thống
         binding.switchMB.setOnCheckedChangeListener { _, isChecked ->
             preferencesManager.setBankEnabled(BankCode.MB.code, isChecked)
         }
-
         binding.switchVCB.setOnCheckedChangeListener { _, isChecked ->
             preferencesManager.setBankEnabled(BankCode.VCB.code, isChecked)
         }
-
         binding.switchTCB.setOnCheckedChangeListener { _, isChecked ->
             preferencesManager.setBankEnabled(BankCode.TCB.code, isChecked)
         }
-
         binding.switchVietin.setOnCheckedChangeListener { _, isChecked ->
             preferencesManager.setBankEnabled(BankCode.VIETIN.code, isChecked)
         }
-
         binding.switchACB.setOnCheckedChangeListener { _, isChecked ->
             preferencesManager.setBankEnabled(BankCode.ACB.code, isChecked)
         }
-
         binding.switchAgri.setOnCheckedChangeListener { _, isChecked ->
             preferencesManager.setBankEnabled(BankCode.AGRI.code, isChecked)
         }
-
         binding.switchBIDV.setOnCheckedChangeListener { _, isChecked ->
             preferencesManager.setBankEnabled(BankCode.BIDV.code, isChecked)
         }
 
-        // Clear data button
-        binding.btnClearData.setOnClickListener {
-            showClearDataDialog()
+        // --- 3 ngân hàng mới ---
+        binding.switchMSB.setOnCheckedChangeListener { _, isChecked ->
+            preferencesManager.setBankEnabled(BankCode.MSB.code, isChecked)
         }
+        binding.switchTimo.setOnCheckedChangeListener { _, isChecked ->
+            preferencesManager.setBankEnabled(BankCode.TIMO.code, isChecked)
+        }
+        binding.switchMoMo.setOnCheckedChangeListener { _, isChecked ->
+            preferencesManager.setBankEnabled(BankCode.MOMO.code, isChecked)
+        }
+
+        // Xóa dữ liệu
+        binding.btnClearData.setOnClickListener { showClearDataDialog() }
 
         updateSoundSettingsVisibility(binding.switchSound.isChecked)
     }
 
     private fun updateSoundSettingsVisibility(enabled: Boolean) {
-        binding.layoutSoundSettings.visibility = if (enabled) {
-            android.view.View.VISIBLE
-        } else {
-            android.view.View.GONE
-        }
+        binding.layoutSoundSettings.visibility =
+            if (enabled) android.view.View.VISIBLE else android.view.View.GONE
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-
         if (requestCode == REQUEST_CODE_SOUND_PICKER && resultCode == Activity.RESULT_OK) {
             val uri: Uri? = data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
             preferencesManager.setCustomSoundUri(uri)
-            binding.tvCurrentSound.text = if (uri != null) {
-                "Âm thanh tùy chỉnh"
-            } else {
-                "Mặc định"
-            }
+            binding.tvCurrentSound.text = if (uri != null) "Âm thanh tùy chỉnh" else "Mặc định"
             showToast("Đã cập nhật âm thanh thông báo")
         }
     }
@@ -179,7 +172,6 @@ class SettingsActivity : AppCompatActivity() {
             .setTitle("Xóa dữ liệu")
             .setMessage("Bạn có chắc muốn xóa toàn bộ dữ liệu? Hành động này không thể hoàn tác!")
             .setPositiveButton("Xóa") { _, _ ->
-                // Clear all preferences and navigate back
                 preferencesManager.clearAll()
                 showToast("Đã xóa toàn bộ dữ liệu")
                 finish()
@@ -194,10 +186,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            android.R.id.home -> {
-                finish()
-                true
-            }
+            android.R.id.home -> { finish(); true }
             else -> super.onOptionsItemSelected(item)
         }
     }

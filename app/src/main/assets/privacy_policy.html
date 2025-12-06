@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy – BankTracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header .icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .content {
+            padding: 25px 20px;
+        }
+
+        .intro {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 18px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            border-left: 5px solid #667eea;
+        }
+
+        .intro p {
+            font-size: 1.05em;
+            line-height: 1.8;
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section h2 {
+            color: #667eea;
+            font-size: 1.6em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section h2::before {
+            content: '';
+            width: 6px;
+            height: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 3px;
+        }
+
+        .section ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .section ul li {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            position: relative;
+            padding-left: 45px;
+            transition: all 0.3s ease;
+        }
+
+        .section ul li:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .section ul li::before {
+            content: '✓';
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .highlight {
+            background: linear-gradient(120deg, #ffeaa7 0%, #fdcb6e 100%);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .contact-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-top: 25px;
+        }
+
+        .contact-box h3 {
+            font-size: 1.5em;
+            margin-bottom: 12px;
+        }
+
+        .contact-box a {
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.2);
+            padding: 10px 25px;
+            border-radius: 25px;
+            display: inline-block;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+            border: 2px solid white;
+        }
+
+        .contact-box a:hover {
+            background: white;
+            color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 25px;
+            background: #f8f9fa;
+            color: #6c757d;
+            font-size: 0.95em;
+        }
+
+        .security-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #d4edda;
+            color: #155724;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .content {
+                padding: 25px 15px;
+            }
+
+            .section h2 {
+                font-size: 1.3em;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="icon">🏦</div>
+        <h1>Privacy Policy</h1>
+        <p>BankTracker - Smart Transaction Management</p>
+        <div class="security-badge">🔒 Data Protected Locally</div>
+    </div>
+
+    <div class="content">
+        <div class="intro">
+            <p><strong>BankTracker</strong> is an application that helps you <span class="highlight">automatically track bank transactions</span> by reading notifications on your device. All data is stored and processed <span class="highlight">completely locally</span> on your device, ensuring absolute privacy and security.</p>
+        </div>
+
+        <div class="section">
+            <h2>1. App Permissions</h2>
+            <ul>
+                <li><strong>Notification Access:</strong> Only used to detect transaction notifications from banking apps that you have enabled for monitoring</li>
+                <li><strong>Sound & Vibration:</strong> To notify you when new transactions are recorded</li>
+                <li><strong>No Internet Connection:</strong> The app does not collect or send any data to external servers by default</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>2. Scope of Operation</h2>
+            <ul>
+                <li>Only reads notifications from <span class="highlight">predefined banking apps</span> in the system configuration</li>
+                <li>If you enable the "Allow analysis of unknown banks" option, the app may read notifications from other apps</li>
+                <li>Transaction data is <span class="highlight">100% locally stored</span> in a Room database on your device</li>
+                <li>No server connections unless you actively enable cloud backup features (if available)</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>3. Your Control</h2>
+            <ul>
+                <li><strong>Disable Monitoring:</strong> Go to Settings → App Permissions → Notification Access and turn off permission for BankTracker</li>
+                <li><strong>Export/Import Data:</strong> You can export all data to a file for backup or transfer to another device</li>
+                <li><strong>Delete Data:</strong> Delete all transaction history at any time in the app's Settings section</li>
+            </ul>
+        </div>
+
+        <div class="contact-box">
+            <h3>📧 Contact & Support</h3>
+            <p>Have questions about privacy or need assistance?</p>
+            <a href="mailto:nguyenminhtrung01082003@gmail.com">nguyenminhtrung01082003@gmail.com</a>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>📅 Last Updated: November 02, 2025</p>
+        <p style="margin-top: 10px; font-size: 0.9em;">© 2025 BankTracker. All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>

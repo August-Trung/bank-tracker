@@ -29,9 +29,14 @@ import com.banktracker.vn.ui.viewmodel.MainViewModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayout
 
+import android.content.ComponentName
+import android.content.pm.PackageManager
+import com.banktracker.vn.utils.PreferencesManager
+
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var preferencesManager: PreferencesManager
     private val viewModel: MainViewModel by viewModels()
     private lateinit var transactionAdapter: TransactionAdapter
 
@@ -47,6 +52,16 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+
+// --- trong onCreate() sau binding init ---
+        preferencesManager = PreferencesManager(this)
+
+// thêm long click để mở dialog opt-in
+        binding.cardServiceStatus.setOnLongClickListener {
+            showOptInDialog()
+            true
+        }
 
         setupToolbar()
         setupRecyclerView()
@@ -288,10 +303,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.action_export -> {
-                showExportDialog()
-                true
-            }
             R.id.action_delete_all -> {
                 showDeleteAllDialog()
                 true
@@ -302,17 +313,6 @@ class MainActivity : AppCompatActivity() {
             }
             else -> super.onOptionsItemSelected(item)
         }
-    }
-
-    private fun showExportDialog() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Export dữ liệu")
-            .setMessage("Tính năng export sẽ xuất toàn bộ giao dịch ra file Excel")
-            .setPositiveButton("Export") { _, _ ->
-                // TODO: Implement export functionality
-            }
-            .setNegativeButton("Hủy", null)
-            .show()
     }
 
     private fun showDeleteAllDialog() {
@@ -346,7 +346,7 @@ class MainActivity : AppCompatActivity() {
             binding.tvServiceStatus.text = "Đang hoạt động"
             binding.tvServiceStatus.setTextColor(ContextCompat.getColor(this, R.color.income_green))
         } else {
-            binding.tvServiceStatus.text = "Chưa cấp quyền đọc thông báo"
+            binding.tvServiceStatus.text = "️Chưa cấp quyền đọc thông báo"
             binding.tvServiceStatus.setTextColor(ContextCompat.getColor(this, R.color.gray))
         }
     }
@@ -355,7 +355,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         checkNotificationPermission()
         viewModel.loadSummaries()
-        checkAndRestartService()
+//        checkAndRestartService()
         updateServiceStatusUI()
     }
 
@@ -374,5 +374,45 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
             }
         }
+    }
+
+    private fun showOptInDialog() {
+        val allowUnknown = preferencesManager.isAllowUnknownBanks()
+        val allowAutoRestart = preferencesManager.isAutoRestartEnabled()
+
+        val items = arrayOf("Cho phép phân tích thông báo từ ngân hàng chưa biết", "Cho phép tự khởi động lại service khi bị kill (khuyến cáo tắt)")
+        val checked = booleanArrayOf(allowUnknown, allowAutoRestart)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Cài đặt quyền nâng cao")
+            .setMultiChoiceItems(items, checked) { _, which, isChecked ->
+                checked[which] = isChecked
+            }
+            .setPositiveButton("Lưu") { _, _ ->
+                // lưu setting
+                preferencesManager.setAllowUnknownBanks(checked[0])
+                preferencesManager.setAutoRestartEnabled(checked[1])
+
+                // enable/disable receiver programmatically
+                setRestartReceiverEnabled(checked[1])
+
+                val msg = StringBuilder("Cài đặt đã lưu.")
+                if (checked[0]) msg.append("\nĐã bật: phân tích ngân hàng chưa biết.")
+                if (checked[1]) msg.append("\nĐã bật: tự khởi động lại (receiver enabled).")
+                MaterialAlertDialogBuilder(this)
+                    .setMessage(msg.toString())
+                    .setPositiveButton("Đóng", null)
+                    .show()
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
+    }
+
+    private fun setRestartReceiverEnabled(enabled: Boolean) {
+        val pm = packageManager
+        val compName = ComponentName(this, "com.banktracker.vn.service.ServiceRestartBroadcastReceiver")
+        val state = if (enabled) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        else PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+        pm.setComponentEnabledSetting(compName, state, PackageManager.DONT_KILL_APP)
     }
 }

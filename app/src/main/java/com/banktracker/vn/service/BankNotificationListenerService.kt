@@ -67,15 +67,6 @@ class BankNotificationListenerService : NotificationListenerService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d("BankTracker", "Service onStartCommand() - Action: ${intent?.action}")
-
-        when (intent?.action) {
-            ACTION_RESTART_SERVICE -> {
-                Log.d("BankTracker", "Service restarting...")
-                // Service được restart
-            }
-        }
-
-        // START_STICKY: Tự động restart khi bị kill bởi system
         return START_STICKY
     }
 
@@ -116,7 +107,7 @@ class BankNotificationListenerService : NotificationListenerService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d("BankTracker", "Service onDestroy() - Scheduling restart...")
+        Log.d("BankTracker", "Service onDestroy()")
 
         isServiceRunning = false
         mediaPlayer?.release()
@@ -125,13 +116,17 @@ class BankNotificationListenerService : NotificationListenerService() {
         textToSpeech?.shutdown()
         textToSpeech = null
 
-        // QUAN TRỌNG: Schedule restart service
-        scheduleServiceRestart()
+        // Schedule restart ONLY IF user opted-in
+        if (preferencesManager.isAutoRestartEnabled()) {
+            scheduleServiceRestart()
+        } else {
+            Log.d("BankTracker", "Auto restart disabled by user; not scheduling restart")
+        }
     }
 
     private fun scheduleServiceRestart() {
         val restartIntent = Intent(applicationContext, ServiceRestartBroadcastReceiver::class.java).apply {
-            action = "com.banktracker.vn.RESTART_SERVICE" // khớp với manifest
+            action = ACTION_RESTART_SERVICE
         }
 
         val pendingIntent = PendingIntent.getBroadcast(
@@ -142,25 +137,17 @@ class BankNotificationListenerService : NotificationListenerService() {
         )
 
         val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val restartTime = System.currentTimeMillis() + 2000 // Restart sau 2 giây
+        val restartTime = System.currentTimeMillis() + 2000 // 2s
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    restartTime,
-                    pendingIntent
-                )
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, restartTime, pendingIntent)
             } else {
-                alarmManager.set(
-                    AlarmManager.RTC_WAKEUP,
-                    restartTime,
-                    pendingIntent
-                )
+                alarmManager.set(AlarmManager.RTC_WAKEUP, restartTime, pendingIntent)
             }
-            Log.d("BankTracker", "✅ Service restart scheduled in 2s")
+            Log.d("BankTracker", "Service restart scheduled in 2s")
         } catch (e: Exception) {
-            Log.e("BankTracker", "❌ Failed to schedule restart", e)
+            Log.e("BankTracker", "Failed to schedule restart", e)
         }
     }
 
@@ -177,18 +164,16 @@ class BankNotificationListenerService : NotificationListenerService() {
             Log.d("BankTracker", "Notification from: $packageName")
             Log.d("BankTracker", "Text: ${notificationText.take(100)}")
 
-            // Kiểm tra có phải thông báo ngân hàng không
+            // Kiểm tra có phải app ngân hàng đã biết
             val bankCode = BankCode.fromPackageName(packageName)
 
-            // Nếu không phải app ngân hàng đã biết, kiểm tra nội dung
-            if (bankCode == null) {
-                if (!containsBalanceChangeKeywords(notificationText)) {
+            // Nếu là unknown bank và user không cho phép -> ignore
+            if (bankCode == null || bankCode == BankCode.UNKNOWN) {
+                if (!preferencesManager.isAllowUnknownBanks()) {
+                    Log.d("BankTracker", "Ignoring unknown bank notification: $packageName")
                     return
-                }
-                Log.d("BankTracker", "Detected unknown bank notification: $packageName")
-            } else if (bankCode == BankCode.UNKNOWN) {
-                if (!containsBalanceChangeKeywords(notificationText)) {
-                    return
+                } else {
+                    Log.d("BankTracker", "Processing unknown bank (opt-in) notification: $packageName")
                 }
             }
 
@@ -208,21 +193,20 @@ class BankNotificationListenerService : NotificationListenerService() {
                 return
             }
 
-            // Create transaction
+            // CHỈ xử lý nếu là TIỀN VÀO
+            if (parsed.type != TransactionType.INCOME) {
+                return
+            }
+
             val transaction = BankNotificationParser.createTransaction(
                 parsed = parsed,
                 bankCode = bankCode,
                 notificationText = notificationText
             )
 
-            // CHỈ xử lý nếu là TIỀN VÀO
-            if (parsed.type != TransactionType.INCOME) {
-                return
-            }
-
             Log.d("BankTracker", "Processing transaction: ${transaction.amount} VND")
 
-            // Save to database
+            // Save to database and notify UI / play sound/TTS
             serviceScope.launch {
                 database.transactionDao().insertTransaction(transaction)
 
@@ -231,13 +215,13 @@ class BankNotificationListenerService : NotificationListenerService() {
                 intent.putExtra("transaction_id", transaction.id)
                 sendBroadcast(intent)
 
-                // Tạo notification và rung trong background
+                // Notification + vibration on background thread
                 withContext(Dispatchers.Default) {
                     showCustomNotification(transaction)
                     vibrateIfEnabled()
                 }
 
-                // Xử lý âm thanh & TTS trên main thread
+                // Sound/TTS on main thread
                 withContext(Dispatchers.Main) {
                     if (preferencesManager.isSoundEnabled()) {
                         if (preferencesManager.isTTSEnabled() && isTTSReady) {

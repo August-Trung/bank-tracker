@@ -82,11 +82,7 @@ enum class BankCode(
         "TPBank",
         listOf("com.tpb.mb.gprsandroid", "com.tpbank")
     ),
-    MSB(
-        "MSB",
-        "MSB - Maritime Bank",
-        listOf("com.msb.mbanking", "com.msb")
-    ),
+    MSB("MSB", "MSB", listOf("com.msb.mbanking", "vn.com.msb")),
     MB_SHINHAN(
         "SHINHAN",
         "Shinhan Bank",
@@ -148,11 +144,7 @@ enum class BankCode(
     ),
 
     // Digital Banks / Fintech
-    TIMO(
-        "TIMO",
-        "Timo Digital Bank",
-        listOf("com.timo.vn")
-    ),
+    TIMO("TIMO", "Timo Digital Bank", listOf("com.timo.vn", "vn.timo")),
     CAKE(
         "CAKE",
         "CAKE by VPBank",
@@ -247,6 +239,7 @@ enum class BankCode(
         "OceanBank",
         listOf("com.oceanbank.mbanking")
     ),
+    MOMO("MOMO", "MoMo E-Wallet", listOf("com.mservice.momotransfer", "com.momo.partner", "vn.momo")),
 
     // UNKNOWN - Cho các ngân hàng chưa hỗ trợ
     UNKNOWN(
@@ -257,13 +250,15 @@ enum class BankCode(
 
     companion object {
         fun fromPackageName(packageName: String): BankCode? {
-            // Tìm bank theo package name
-            val bank = values().find { bank ->
-                bank.packageNames.any { it.equals(packageName, ignoreCase = true) }
+            val pkg = packageName.lowercase()
+
+            // Tìm ngân hàng có tên package trùng hoặc chứa trong chuỗi
+            val bank = values().firstOrNull { bank ->
+                bank.packageNames.any { keyword -> pkg.contains(keyword.lowercase()) }
             }
 
-            // Nếu không tìm thấy, kiểm tra có chứa từ khóa ngân hàng không
-            if (bank == null && containsBankKeyword(packageName)) {
+            // Nếu không tìm thấy, kiểm tra có chứa từ khóa ngân hàng chung
+            if (bank == null && containsBankKeyword(pkg)) {
                 return UNKNOWN
             }
 

@@ -3,6 +3,7 @@ package com.banktracker.vn.utils
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import androidx.core.content.edit
 
 class PreferencesManager(context: Context) {
 
@@ -28,6 +29,9 @@ class PreferencesManager(context: Context) {
         // Default values
         private const val DEFAULT_MINIMUM_AMOUNT = 0.0
         private const val DEFAULT_LARGE_AMOUNT = 10_000_000.0 // 10 triệu
+
+        private const val KEY_ALLOW_UNKNOWN_BANKS = "allow_unknown_banks"
+        private const val KEY_ALLOW_AUTO_RESTART = "allow_auto_restart"
     }
 
     // Sound settings
@@ -118,4 +122,10 @@ class PreferencesManager(context: Context) {
     fun clearAll() {
         prefs.edit().clear().apply()
     }
+
+    fun isAllowUnknownBanks(): Boolean = prefs.getBoolean(KEY_ALLOW_UNKNOWN_BANKS, false)
+    fun setAllowUnknownBanks(v: Boolean) = prefs.edit { putBoolean(KEY_ALLOW_UNKNOWN_BANKS, v) }
+
+    fun isAutoRestartEnabled(): Boolean = prefs.getBoolean(KEY_ALLOW_AUTO_RESTART, false)
+    fun setAutoRestartEnabled(v: Boolean) = prefs.edit { putBoolean(KEY_ALLOW_AUTO_RESTART, v) }
 }
